@@ -8,13 +8,24 @@ def parse_args():
     parser.add_argument('--gpu-id',type=int,default=None)
     args = parser.parse_args()
     return args
+#single node | single gpu | multi process
+
+#single node | multi process | [multi gpu] 
 
 #slurm | torch.distributed.launch
+# 코드 수정+slurm추가
+# git 업로드+git readme 작성
+
 def main():
     args = parse_args()
 
     distributed = False
-    
+
+    if torch.cuda.is_available():
+        nprocs_per_node = torch.cuda.device_count()
+    else:
+        nprocs_per_node = 1
+
     if 'WORLD_SIZE' in os.environ and int(os.environ['WORLD_SIZE'])>1:
         distributed = True
         # print('Use {} gpus'.format(os.environ['WORLD_SIZE']))
@@ -42,12 +53,15 @@ def main():
         #5. multi gpu(this), single node, multi process : DDP
         #6. multi gpu(this), multi node, multi process : DDP
         if torch.cuda.is_available():
-            if args.gpu_id is None:
+            if args.gpu_id is None or nprocs_per_node>1:
                 print('This mode is multi gpu and multi process with cuda..')
             else:
                 print('This mode is single gpu and multi process with cuda..')
         else:
             print('This mode is not supported because distribution operates with cuda gpu..')
+
+
+#distributed이면서 gpu 갯수확인?
 
 if __name__=="__main__":
     main()
