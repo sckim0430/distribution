@@ -8,13 +8,6 @@ def parse_args():
     parser.add_argument('--gpu-id',type=int,default=None)
     args = parser.parse_args()
     return args
-#single node | single gpu | multi process
-
-#single node | multi process | [multi gpu] 
-
-#slurm | torch.distributed.launch
-# 코드 수정+slurm추가
-# git 업로드+git readme 작성
 
 def main():
     args = parse_args()
