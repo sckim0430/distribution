@@ -1,4 +1,4 @@
-# distribution
+# torch-distribution
 
 ## Run on torch.distributed.lauch
 
@@ -14,8 +14,10 @@ Or use dist.sh
 $sh dist.sh
 ```
 
-## Run on slurm
+## Note
+
+when you run this script on the docker container, you should use '--network=host' option like below.
 
 ```
-$sh slurm.sh
+$ docker run --gpus all --network host [-it] [--name NAME] [--shm-size SHARED_MEMORY_SIZE] [-v HOST_PATH:DOCKER_PATH] image_name /bin/bash
 ```
