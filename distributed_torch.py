@@ -2,6 +2,8 @@ import os
 import torch
 import argparse
 
+import torch.distributed as dist
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--local_rank',type=int)
@@ -50,6 +52,9 @@ def main():
                 print('This mode is multi gpu and multi process with cuda..')
             else:
                 print('This mode is single gpu and multi process with cuda..')
+            print('Initalization...{}/{}'.format(os.environ['LOCAL_RANK'],int(os.environ['WORLD_SIZE'])-1))
+            dist.init_process_group(backend='nccl', world_size=int(os.environ['WORLD_SIZE']), rank=int(os.environ['LOCAL_RANK']))
+            print('done!')
         else:
             print('This mode is not supported because distribution operates with cuda gpu..')
 
