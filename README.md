@@ -11,7 +11,7 @@ $ python -m torch.distributed.launch [--nnodes NNODES] [--node_rank NODE_RANK] [
 Or use dist.sh
 
 ```
-$sh dist.sh
+$ sh dist.sh
 ```
 
 ## Note
