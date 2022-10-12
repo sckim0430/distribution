@@ -59,7 +59,5 @@ def main():
             print('This mode is not supported because distribution operates with cuda gpu..')
 
 
-#distributed이면서 gpu 갯수확인?
-
 if __name__=="__main__":
     main()
