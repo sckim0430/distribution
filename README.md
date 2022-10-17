@@ -16,8 +16,8 @@ $ sh dist.sh
 
 ## Note
 
-When you run this script on the docker container, you should use '--network=host' option like below.
+When you run this script on the docker container, you should use '--network=host' and '--ipc=host' option like below.
 
 ```
-$ docker run --gpus all --network host [-it] [--name NAME] [--shm-size SHARED_MEMORY_SIZE] [-v HOST_PATH:DOCKER_PATH] image_name /bin/bash
+$ docker run --gpus all --network host --ipc host [-it] [--name NAME] [--shm-size SHARED_MEMORY_SIZE] [-v HOST_PATH:DOCKER_PATH] image_name /bin/bash
 ```
