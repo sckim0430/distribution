@@ -47,7 +47,7 @@ def main():
         #5. multi gpu(this), single node, multi process : DDP
         #6. multi gpu(this), multi node, multi process : DDP
         if torch.cuda.is_available():
-            if args.gpu_id is None or nprocs_per_node>1:
+            if args.gpu_id is None and nprocs_per_node>1:
                 print('This mode is multi gpu and multi process with cuda..')
             else:
                 print('This mode is single gpu and multi process with cuda..')
