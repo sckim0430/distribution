@@ -54,7 +54,10 @@ def main():
             
             print('Initalization...{}/{}'.format(os.environ['RANK'],int(os.environ['WORLD_SIZE'])-1))
             dist.init_process_group(backend='nccl', world_size=int(os.environ['WORLD_SIZE']), rank=int(os.environ['RANK']))
-            print('done!')
+            if torch.distributed.is_available():
+                print('distribution is available.')
+            else:
+                print('distirbution is not available.')
         else:
             print('This mode is not supported because distribution operates with cuda gpu..')
 
