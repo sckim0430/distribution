@@ -1,18 +1,66 @@
 import os
-import torch
 import argparse
 
+import torch
+import torch.nn as nn
 import torch.distributed as dist
 import torchvision
-
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--local_rank', type=int)
-    parser.add_argument('--gpu-id', type=int, default=None)
     args = parser.parse_args()
     return args
 
+def set_device(local_rank=None):
+    """The operation for set torch device.
+    Args:
+        local_rank (int): The local rank. Defaults to None.
+    Returns:
+        torch.device: The torch device.
+    """
+    device = None
+
+    if torch.cuda.is_available():
+        if local_rank is not None:
+            device = torch.device('cuda:{}'.format(local_rank))
+        else:
+            device = torch.device('cuda')
+    elif torch.backends.mps.is_available():
+        device = torch.device('mps')
+    else:
+        device = torch.device('cpu')
+
+    return device
+
+def set_model(model, device, distributed=False):
+    """The operation for set model's distribution mode.
+    Args:
+        model (nn.Module): The model.
+        device (torch.device): The torch device.
+        distributed (bool, optional): The option for distributed. Defaults to False.
+    Raises:
+        ValueError: If distributed gpu option is true, the gpu device should cuda.
+
+    Returns:
+        nn.Module: The model.
+    """
+    is_cuda = torch.cuda.is_available()
+
+    if distributed:
+        if is_cuda:
+            model.to(device)
+            model = nn.parallel.DistributedDataParallel(model,device_ids=[device],output_device=[device])
+        else:
+            raise ValueError(
+                'If in cpu or mps mode, distributed option should be False.')
+    else:
+        model = model.to(device)
+
+        if is_cuda and torch.cuda.device_count()>1:
+            model = nn.parallel.DataParallel(model)
+
+    return model
 
 def main():
     args = parse_args()
@@ -23,56 +71,21 @@ def main():
         distributed = True
         print('This is {} rank of {} process'.format(
             os.environ['RANK'], os.environ['WORLD_SIZE']))
+    
+    device = set_device(args.local_rank if distributed else None)    
 
-    nprocs_per_node = os.environ['LOCAL_WORLD_SIZE'] if distributed else -1
+    if distributed:
+        dist.init_process_group(backend='nccl', init_method='env://', world_size=int(
+                os.environ['WORLD_SIZE']), rank=int(os.environ['RANK']))
+        
+        if torch.distributed.is_initialized():
+                print('Distribution is initalized.')
+        else:
+            print('Distirbution is not initalized.')
 
     model = torchvision.models.resnet18(pretrained=False)
-
-    if not distributed:
-        # 1. cpu
-        # 2. single gpu(this), single node, single process
-        # 3. multi gpu(this), single node, single process : DP
-        if torch.cuda.is_available():
-            # get gpu count
-            if args.gpu_id is None:
-                # multi gpu
-                print('This mode uses multi gpu and single process.. use DataParallel..')
-            else:
-                # single gpu
-                print('This mode uses single gpu and single process with cuda..')
-        elif torch.backends.mps.is_available():
-            # single gpu
-            print('This mode uses single gpu and single process with mps..')
-        else:
-            print('This mode uses cpu..')
-    else:
-        # 4. single gpu(this), multi node, multi process : DDP
-        # 5. multi gpu(this), single node, multi process : DDP
-        # 6. multi gpu(this), multi node, multi process : DDP
-        if torch.cuda.is_available():
-            if args.gpu_id is None and nprocs_per_node > 1:
-                print('This mode is multi gpu and multi process with cuda..')
-            else:
-                print('This mode is single gpu and multi process with cuda..')
-
-            print(
-                'Initalization...{}/{}'.format(os.environ['RANK'], int(os.environ['WORLD_SIZE'])-1))
-
-            dist.init_process_group(backend='nccl', init_method='env://', world_size=int(
-                os.environ['WORLD_SIZE']), rank=int(os.environ['RANK']))
-
-            if torch.distributed.is_initialized():
-                print('Distribution is initalized.')
-            else:
-                print('Distirbution is not initalized.')
-
-            ddp_model = torch.nn.parallel.DistributedDataParallel(
-                model, device_ids=args.local_rank, output_device=args.local_rank)
-            print('Get the DDP model.')
-        else:
-            print(
-                'This mode is not supported because distribution operates with cuda gpu..')
-
+    model = set_model(model,device,distributed=distributed)
+    print('Get model.')
 
 if __name__ == "__main__":
     main()

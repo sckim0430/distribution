@@ -43,11 +43,9 @@ def parse():
     parser.add_argument("--random_seed", type=int,
                         help="Random seed.", default=0)
     parser.add_argument("--model_dir", type=str,
-                        help="Directory for saving models.", default="/saved_models")
+                        help="Directory for saving models.", default="../saved_models")
     parser.add_argument("--model_filename", type=str,
                         help="Model filename.", default="resnet_distributed.pth")
-    parser.add_argument("--gpu_id", type=int,
-                        help="The selected gpu id", defulat=None,)
     return parser.parse_args()
 
 
@@ -59,19 +57,18 @@ def set_random_seeds(random_seed=0):
     random.seed(random_seed)
 
 
-def set_device(gpu_id=None):
+def set_device(local_rank=None):
     """The operation for set torch device.
     Args:
-        gpu_id (int, optional): The gpu id. Defaults to None.
+        local_rank (int): The local rank. Defaults to None.
     Returns:
         torch.device: The torch device.
     """
     device = None
 
     if torch.cuda.is_available():
-        if gpu_id is not None:
-            device = torch.device('cuda:{}'.foramt(gpu_id))
-            torch.cuda.set_device(device)
+        if local_rank is not None:
+            device = torch.device('cuda:{}'.format(local_rank))
         else:
             device = torch.device('cuda')
     elif torch.backends.mps.is_available():
@@ -81,13 +78,11 @@ def set_device(gpu_id=None):
 
     return device
 
-
-def set_model(model, device, select_gpu, distributed=False):
+def set_model(model, device, distributed=False):
     """The operation for set model's distribution mode.
     Args:
         model (nn.Module): The model.
         device (torch.device): The torch device.
-        select_gpu (bool, optional): The option for select gpu id.
         distributed (bool, optional): The option for distributed. Defaults to False.
     Raises:
         ValueError: If distributed gpu option is true, the gpu device should cuda.
@@ -100,16 +95,15 @@ def set_model(model, device, select_gpu, distributed=False):
     if distributed:
         if is_cuda:
             model.to(device)
-            model = nn.parallel.DistributedDataParallel(
-                model, device_ids=[device])
+            model = nn.parallel.DistributedDataParallel(model,device_ids=[device],output_device=[device])
         else:
             raise ValueError(
                 'If in cpu or mps mode, distributed option should be False.')
     else:
         model = model.to(device)
 
-        if is_cuda and not select_gpu:
-            model = nn.parallel.DataParallel(model, device_ids=[device])
+        if is_cuda and torch.cuda.device_count()>1:
+            model = nn.parallel.DataParallel(model)
 
     return model
 
@@ -136,16 +130,9 @@ def main():
         torch.distributed.init_process_group(backend="nccl", init_method='env://', rank=int(
             os.environ['RANK']), world_size=int(os.environ['WORLD_SIZE']))
 
-    device = set_device(argv.gpu_id)
+    device = set_device(argv.local_rank if distributed else None)
     model = torchvision.models.resnet18(pretrained=False)
-    model = set_model(model, device, argv.gpu_id is not None,
-                      distributed=distributed)
-
-    # We only save the model who uses device "cuda:0"
-    # To resume, the device for the saved model would also be "cuda:0"
-    if argv.resume:
-        model.load_state_dict(torch.load(
-            model_filepath, map_location=device))
+    model = set_model(model,device,distributed=distributed)
 
     # Prepare dataset and dataloader
     transform = transforms.Compose([
@@ -159,9 +146,9 @@ def main():
     # Data should be prefetched
     # Download should be set to be False, because it is not multiprocess safe
     train_set = torchvision.datasets.CIFAR10(
-        root="data", train=True, download=False, transform=transform)
+        root="../data", train=True, download=False, transform=transform)
     test_set = torchvision.datasets.CIFAR10(
-        root="data", train=False, download=False, transform=transform)
+        root="../data", train=False, download=False, transform=transform)
 
     # Restricts data loading to a subset of the dataset exclusive to the current process
     train_sampler = None
