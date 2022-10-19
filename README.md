@@ -29,8 +29,18 @@ $ sh [dist_worker_check.sh | dist_worker_train.sh]
 
 ## Note
 
-When you run this script on the docker container, you should use '--network=host' and '--ipc=host' option like below.
+1. When you run this script on the docker container, you should use '--network=host' and '--ipc=host' option like below.
 
 ```
 $ docker run --gpus all --network host --ipc host [-it] [--name NAME] [--shm-size SHARED_MEMORY_SIZE] [-v HOST_PATH:DOCKER_PATH] image_name /bin/bash
+```
+
+2. When you run the distributed_train.py, you can get data as follow.
+
+```
+$ mkdir -p data
+$ mkdir -p saved_models
+$ cd data
+$ wget -c --quiet https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz
+$ tar -xvzf cifar-10-python.tar.gz
 ```
